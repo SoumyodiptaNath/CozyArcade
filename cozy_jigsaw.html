@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Cozy Automated Jigsaw</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FDFBF7;
+    --card: #EFE4D6;
+    --board-bg: #E3D4C1;
+    --primary: #95A792;
+    --peek: #DDAA55;
+    --danger: #D97D64;
+    --text: #4A3E3D;
+    --subtext: #7A6866;
+    --shadow: rgba(74, 62, 61, 0.12);
+    --btn-shadow: rgba(149, 167, 146, 0.4);
+    --border: #C8B59E;
+  }
+
+  [data-theme="dark"] {
+    --bg: #1A1816;
+    --card: #27221F;
+    --board-bg: #171412;
+    --primary: #7E9A7B;
+    --peek: #C8943D;
+    --danger: #C86D56;
+    --text: #EAE0D5;
+    --subtext: #A89B90;
+    --shadow: rgba(0, 0, 0, 0.5);
+    --btn-shadow: rgba(126, 154, 123, 0.3);
+    --border: #3A322D;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 10px;
+    touch-action: none;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 6px;
+  }
+
+  h1 { margin: 0; font-size: 1.4rem; font-weight: 900; }
+  
+  .theme-toggle {
+    background: var(--card);
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 6px 12px;
+    border-radius: 50px;
+    box-shadow: 0 4px 10px var(--shadow);
+  }
+
+  .controls-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 480px;
+    background: var(--card);
+    padding: 8px 14px;
+    border-radius: 18px;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 12px var(--shadow);
+    gap: 8px;
+  }
+
+  .slider-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 800;
+  }
+
+  input[type="range"] {
+    accent-color: var(--primary);
+    cursor: pointer;
+    width: 90px;
+  }
+
+  select {
+    background: var(--bg);
+    color: var(--text);
+    border: 1.5px solid var(--border);
+    padding: 5px 10px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .game-container {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    aspect-ratio: 1 / 1;
+    background: var(--card);
+    border-radius: 24px;
+    padding: 8px;
+    box-shadow: 0 10px 25px var(--shadow);
+    overflow: hidden;
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+    background: var(--board-bg);
+    border-radius: 18px;
+    border: 3px solid var(--border);
+    display: block;
+    cursor: grab;
+  }
+  canvas:active { cursor: grabbing; }
+
+  /* Floating unobtrusive timer badge during preview */
+  .preview-badge {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.75);
+    color: #FFF;
+    padding: 6px 16px;
+    border-radius: 50px;
+    font-size: 0.88rem;
+    font-weight: 900;
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 5;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .preview-badge.active { opacity: 1; }
+
+  /* --- Bottom Side-by-Side Prominent Action Bar --- */
+  .bottom-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 480px;
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .action-btn {
+    flex: 1;
+    height: 48px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 0 16px;
+    border-radius: 99px;
+    font-size: 0.95rem;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 4px 12px var(--btn-shadow);
+    transition: transform 0.08s ease, background-color 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .action-btn:active { transform: scale(0.95); }
+
+  /* Prominent New Image Button Styling */
+  .action-btn.new-image-btn {
+    background: var(--danger);
+    box-shadow: 0 4px 12px rgba(217, 125, 100, 0.35);
+  }
+  .action-btn.new-image-btn:hover {
+    filter: brightness(1.05);
+    box-shadow: 0 6px 16px rgba(217, 125, 100, 0.45);
+  }
+
+  .action-btn.peek-mode {
+    background: var(--peek);
+    box-shadow: 0 4px 12px rgba(221, 170, 85, 0.35);
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(5px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 10;
+  }
+
+  .overlay.active { opacity: 1; pointer-events: auto; }
+
+  .banner-icon { font-size: 3rem; animation: bounce 0.6s infinite alternate; }
+  .banner-text { color: #FFF; font-size: 1.45rem; font-weight: 900; margin-top: 4px; }
+  .banner-sub { color: #F0E6D2; font-size: 0.85rem; font-weight: 700; text-align: center; }
+
+  @keyframes bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-8px); }
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Cozy Jigsaw</h1>
+    <button class="theme-toggle" id="themeBtn" aria-label="Toggle theme">☀️</button>
+  </div>
+
+  <div class="controls-bar">
+    <div class="slider-group">
+      <span>Theme:</span>
+      <select id="themeSelect">
+        <option value="all">✨ Random Mix</option>
+        <option value="cats">🐱 Cute Cats</option>
+        <option value="dogs">🐶 Cute Dogs</option>
+        <option value="nature">🌿 Calm Nature</option>
+        <option value="space">🪐 Cosmos & Planets</option>
+        <option value="art">🪷 Art & Spiritual</option>
+      </select>
+    </div>
+
+    <div class="slider-group">
+      <span>Grid:</span>
+      <input type="range" id="gridSlider" min="2" max="5" value="3" />
+      <span id="gridLabel">3×3</span>
+    </div>
+
+    <div style="font-weight: 900; font-size: 0.85rem;">
+      <span id="statusLabel">Locked:</span> <span id="lockedCount">0</span>/<span id="totalCount">9</span>
+    </div>
+  </div>
+
+  <div class="game-container" id="gameBox">
+    <canvas id="puzzleCanvas" width="500" height="500"></canvas>
+
+    <div class="preview-badge" id="previewBadge">
+      <span>👀 Memorize Image:</span> <span id="countdownSecs">4</span>s
+    </div>
+
+    <div class="overlay active" id="bannerOverlay">
+      <div class="banner-icon" id="bannerIcon">🧩</div>
+      <div class="banner-text" id="bannerText">COZY JIGSAW</div>
+      <div class="banner-sub" id="bannerSub">Select your theme and hit Start to begin!</div>
+    </div>
+  </div>
+
+  <div class="bottom-actions">
+    <button class="action-btn new-image-btn" id="findAnotherBtn" onclick="findAnotherImage()">
+      🔄 New Image
+    </button>
+    <button class="action-btn" id="actionBtn" onclick="handleActionButton()">
+      Start Puzzle
+    </button>
+  </div>
+
+<script>
+  /* --- Web Audio Synthesizer --- */
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  let bgMusicInterval = null;
+  let lastMoveTime = 0;
+
+  const JIGSAW_CHORDS = [
+    [146.83, 220.00, 277.18, 329.63],
+    [196.00, 246.94, 293.66, 369.99],
+    [123.47, 185.00, 220.00, 293.66],
+    [110.00, 164.81, 220.00, 293.66]
+  ];
+  let chordIdx = 0;
+
+  function playAmbientChord() {
+    if (!isPlaying) return;
+    const chord = JIGSAW_CHORDS[chordIdx];
+    chordIdx = (chordIdx + 1) % JIGSAW_CHORDS.length;
+
+    chord.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.035, ctx.currentTime + 0.8 + (i * 0.1));
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 3.2);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 3.2);
+    });
+  }
+
+  function startMusic() {
+    if (bgMusicInterval) clearInterval(bgMusicInterval);
+    playAmbientChord();
+    bgMusicInterval = setInterval(playAmbientChord, 3200);
+  }
+
+  function stopMusic() {
+    if (bgMusicInterval) clearInterval(bgMusicInterval);
+  }
+
+  // Tactile Soft Glide Motion (Damped Sine Resonance)
+  function triggerDragMotionSound(speed = 1) {
+    if (ctx.state === 'suspended') ctx.resume();
+    
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    osc.type = 'sine';
+    const basePitch = 110 + Math.min(speed * 1.5, 50);
+    osc.frequency.setValueAtTime(basePitch, now);
+    osc.frequency.exponentialRampToValueAtTime(70, now + 0.05);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(200, now);
+
+    gain.gain.setValueAtTime(0.035, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.05);
+  }
+
+  function playThud(isPickup = true) {
+    if (ctx.state === 'suspended') ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    const freq = isPickup ? 280 : 180;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.08);
+  }
+
+  // Softened Balanced Snap Chime
+  function playSnapChime() {
+    if (ctx.state === 'suspended') ctx.resume();
+    [587.33, 880.00].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + (i * 0.06));
+      gain.gain.setValueAtTime(0.14, ctx.currentTime + (i * 0.06));
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (i * 0.06) + 0.25);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + (i * 0.06));
+      osc.stop(ctx.currentTime + (i * 0.06) + 0.25);
+    });
+  }
+
+  function playPeekSound() {
+    if (ctx.state === 'suspended') ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(380, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(740, ctx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.2);
+  }
+
+  function playWinFanfare() {
+    if (ctx.state === 'suspended') ctx.resume();
+    [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + (i * 0.08));
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + (i * 0.08));
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (i * 0.08) + 0.38);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + (i * 0.08));
+      osc.stop(ctx.currentTime + (i * 0.08) + 0.38);
+    });
+  }
+
+  /* --- Curated & Automated Thematic Image Engine --- */
+  async function fetchAutomatedImage(category) {
+    const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+    const NATURE_QUERIES = [
+      'cozy cabin', 'cabin in the woods', 'cabin by lake', 'misty forest',
+      'foggy forest', 'sunlight through forest', 'forest path', 'autumn forest',
+      'golden forest', 'mountain lake', 'alpine lake', 'lake reflection',
+      'mountain sunset', 'mountain sunrise', 'misty mountains', 'snowy mountains',
+      'green valley', 'wildflower meadow', 'waterfall forest', 'mossy forest',
+      'rainy forest', 'quiet beach', 'ocean sunset', 'tropical beach sunset',
+      'peaceful countryside', 'cherry blossom landscape'
+    ];
+
+    const SPACE_QUERIES = [
+      'colorful nebula', 'beautiful nebula', 'spiral galaxy', 'Milky Way',
+      'deep space', 'cosmic clouds', 'star cluster', 'stellar nursery',
+      'Earth from space', 'Earth at night', 'Earth horizon', 'Moon surface',
+      'Moon landscape', 'Mars landscape', 'Jupiter', 'Saturn rings',
+      'aurora space', 'Hubble nebula', 'Hubble galaxy', 'James Webb nebula', 
+      'James Webb galaxy'
+    ];
+
+    const ART_QUERIES = [
+      'Krishna', 'Radha Krishna', 'Krishna flute', 'Krishna painting',
+      'Krishna miniature', 'Radha Krishna Kangra', 'Krishna Govardhana',
+      'Shiva', 'Parvati', 'Ganesha', 'Durga', 'Rama Sita painting', 
+    ];
+
+    async function unsplash(query) {
+      const url = new URL('https://api.unsplash.com/search/photos');
+      url.search = new URLSearchParams({
+        query,
+        per_page: 30,
+        orientation: 'landscape',
+        content_filter: 'high'
+      });
+
+      const UNSPLASH_ACCESS_KEY = 'd-UShg2wABt8Qjb4OsHfaOGuYmYHImEvDYTMVLYglfg';
+
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`
+        }
+      });
+
+      if (!res.ok) throw new Error('Unsplash request failed');
+
+      const data = await res.json();
+      const images = data.results
+        ?.map(x => x.urls?.regular)
+        .filter(Boolean);
+
+      if (!images?.length) throw new Error('No images found');
+      return pick(images);
+    }
+
+    async function nasa(query) {
+      const url = new URL('https://images-api.nasa.gov/search');
+      url.search = new URLSearchParams({
+        q: query,
+        media_type: 'image',
+        page_size: 30
+      });
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('NASA request failed');
+
+      const data = await res.json();
+      const images = data.collection?.items
+        ?.map(x => x.links?.find(l => l.rel === 'preview')?.href)
+        .filter(Boolean);
+
+      if (!images?.length) throw new Error('No images found');
+      return pick(images);
+    }
+
+    async function commons(query) {
+      const url = new URL('https://commons.wikimedia.org/w/api.php');
+      url.search = new URLSearchParams({
+        action: 'query',
+        generator: 'search',
+        gsrsearch: query,
+        gsrnamespace: '6',
+        gsrlimit: '30',
+        prop: 'imageinfo',
+        iiprop: 'url',
+        iiurlwidth: '1200',
+        format: 'json',
+        origin: '*'
+      });
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Commons request failed');
+
+      const data = await res.json();
+      const images = Object.values(data.query?.pages || {})
+        .map(x => x.imageinfo?.[0]?.thumburl)
+        .filter(Boolean);
+
+      if (!images.length) throw new Error('No images found');
+      return pick(images);
+    }
+
+    const sources = {
+      cats: async () =>
+        `https://cataas.com/cat?width=1000&height=1000&t=${Date.now()}`,
+
+      dogs: async () => {
+        try {
+          const res = await fetch('https://dog.ceo/api/breeds/image/random');
+          const data = await res.json();
+          if (data.status !== 'success' || !data.message) throw new Error();
+          return data.message;
+        } catch {
+          return `https://cataas.com/cat?width=1000&height=1000&t=${Date.now()}`;
+        }
+      },
+
+      nature: async () => {
+        try {
+          return await unsplash(pick(NATURE_QUERIES));
+        } catch {
+          return unsplash('beautiful nature landscape');
+        }
+      },
+
+      space: async () => {
+        try {
+          return await nasa(pick(SPACE_QUERIES));
+        } catch {
+          return nasa('beautiful nebula');
+        }
+      },
+
+      art: async () => {
+        try {
+          return await unsplash(pick(ART_QUERIES));
+        } catch {
+          return unsplash('Krishna painting');
+        }
+      }
+    };
+
+    if (category === 'all') {
+      category = pick(['cats', 'dogs', 'nature', 'space', 'art']);
+    }
+
+    return (sources[category] || sources.nature)();
+  }
+
+  /* --- Game State Variables --- */
+  const canvas = document.getElementById('puzzleCanvas');
+  const c = canvas.getContext('2d');
+  const gridSlider = document.getElementById('gridSlider');
+  const gridLabel = document.getElementById('gridLabel');
+  const themeSelect = document.getElementById('themeSelect');
+  const lockedDisplay = document.getElementById('lockedCount');
+  const totalDisplay = document.getElementById('totalCount');
+  const actionBtn = document.getElementById('actionBtn');
+  const findAnotherBtn = document.getElementById('findAnotherBtn');
+  const overlay = document.getElementById('bannerOverlay');
+  const bannerIcon = document.getElementById('bannerIcon');
+  const bannerText = document.getElementById('bannerText');
+  const bannerSub = document.getElementById('bannerSub');
+  const previewBadge = document.getElementById('previewBadge');
+  const countdownSecs = document.getElementById('countdownSecs');
+
+  let gridDim = 3;
+  let pieces = [];
+  let activePiece = null;
+  let dragOffset = { x: 0, y: 0 };
+  let currentImage = new Image();
+  let isPlaying = false;
+  let isPeeking = false;
+  let previewTimer = null;
+  const SNAP_THRESHOLD = 34;
+
+  gridSlider.addEventListener('input', (e) => {
+    gridDim = parseInt(e.target.value);
+    gridLabel.textContent = `${gridDim}×${gridDim}`;
+    totalDisplay.textContent = gridDim * gridDim;
+  });
+
+  function handleActionButton() {
+    if (ctx.state === 'suspended') ctx.resume();
+    if (!isPlaying) {
+      initPuzzle();
+    } else {
+      triggerSneakPeek();
+    }
+  }
+
+  function findAnotherImage() {
+    if (ctx.state === 'suspended') ctx.resume();
+    if (previewTimer) clearInterval(previewTimer);
+    previewBadge.classList.remove('active');
+    stopMusic();
+    isPlaying = false;
+    initPuzzle();
+  }
+
+  function triggerSneakPeek() {
+    if (isPeeking || !isPlaying) return;
+    isPeeking = true;
+    playPeekSound();
+    actionBtn.disabled = true;
+
+    c.clearRect(0, 0, canvas.width, canvas.height);
+    c.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
+
+    setTimeout(() => {
+      isPeeking = false;
+      actionBtn.disabled = false;
+      drawPuzzle();
+    }, 1800);
+  }
+
+  async function initPuzzle() {
+    overlay.classList.remove('active');
+    actionBtn.disabled = true;
+    actionBtn.classList.remove('peek-mode');
+
+    bannerIcon.textContent = '🌐';
+    bannerText.textContent = 'FETCHING IMAGE...';
+    bannerSub.textContent = 'Curating a cozy photo from the web...';
+    overlay.classList.add('active');
+
+    const selectedCategory = themeSelect.value;
+    const imageUrl = await fetchAutomatedImage(selectedCategory);
+
+    currentImage = new Image();
+    currentImage.crossOrigin = "anonymous";
+    currentImage.src = imageUrl;
+
+    currentImage.onload = () => {
+      // 1. Dismiss overlay modal so image is 100% visible and unblurred
+      overlay.classList.remove('active');
+
+      // 2. Draw full pristine image
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      c.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
+
+      // 3. Show small countdown banner at the top
+      let timeLeft = 4;
+      countdownSecs.textContent = timeLeft;
+      previewBadge.classList.add('active');
+
+      if (previewTimer) clearInterval(previewTimer);
+      previewTimer = setInterval(() => {
+        timeLeft--;
+        if (timeLeft > 0) {
+          countdownSecs.textContent = timeLeft;
+        } else {
+          clearInterval(previewTimer);
+          previewBadge.classList.remove('active');
+          scrambleAndStart();
+        }
+      }, 1000);
+    };
+
+    currentImage.onerror = () => {
+      currentImage.src = `https://picsum.photos/seed/${Date.now()}/600/600`;
+    };
+  }
+
+  function scrambleAndStart() {
+    pieces = [];
+    const pieceWidth = canvas.width / gridDim;
+    const pieceHeight = canvas.height / gridDim;
+
+    for (let row = 0; row < gridDim; row++) {
+      for (let col = 0; col < gridDim; col++) {
+        const randX = Math.random() * (canvas.width - pieceWidth);
+        const randY = Math.random() * (canvas.height - pieceHeight);
+
+        pieces.push({
+          row, col,
+          correctX: col * pieceWidth,
+          correctY: row * pieceHeight,
+          x: randX,
+          y: randY,
+          w: pieceWidth,
+          h: pieceHeight,
+          isLocked: false
+        });
+      }
+    }
+
+    isPlaying = true;
+    startMusic();
+    
+    actionBtn.disabled = false;
+    actionBtn.textContent = '👁️ Sneak Peek';
+    actionBtn.classList.add('peek-mode');
+
+    updateLockedCount();
+    drawPuzzle();
+  }
+
+  function updateLockedCount() {
+    const locked = pieces.filter(p => p.isLocked).length;
+    lockedDisplay.textContent = locked;
+    totalDisplay.textContent = pieces.length;
+
+    if (locked === pieces.length && pieces.length > 0) {
+      isPlaying = false;
+      stopMusic();
+      playWinFanfare();
+      
+      setTimeout(() => {
+        bannerIcon.textContent = '🎉';
+        bannerText.textContent = 'PUZZLE COMPLETE!';
+        bannerSub.textContent = 'All pieces snapped into place!';
+        overlay.classList.add('active');
+        
+        actionBtn.disabled = false;
+        actionBtn.textContent = 'Play Another';
+        actionBtn.classList.remove('peek-mode');
+      }, 250);
+    }
+  }
+
+  /* --- Dragging Handlers --- */
+  function getCanvasPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height)
+    };
+  }
+
+  const startDrag = (e) => {
+    if (!isPlaying || isPeeking) return;
+    const pos = getCanvasPos(e);
+
+    for (let i = pieces.length - 1; i >= 0; i--) {
+      const p = pieces[i];
+      if (!p.isLocked && pos.x >= p.x && pos.x <= p.x + p.w && pos.y >= p.y && pos.y <= p.y + p.h) {
+        activePiece = p;
+        dragOffset.x = pos.x - p.x;
+        dragOffset.y = pos.y - p.y;
+        
+        playThud(true);
+
+        pieces.splice(i, 1);
+        pieces.push(activePiece);
+        break;
+      }
+    }
+  };
+
+  const moveDrag = (e) => {
+    if (!activePiece || !isPlaying || isPeeking) return;
+    const pos = getCanvasPos(e);
+
+    const targetX = Math.max(0, Math.min(canvas.width - activePiece.w, pos.x - dragOffset.x));
+    const targetY = Math.max(0, Math.min(canvas.height - activePiece.h, pos.y - dragOffset.y));
+    
+    const deltaDist = Math.hypot(targetX - activePiece.x, targetY - activePiece.y);
+    
+    activePiece.x = targetX;
+    activePiece.y = targetY;
+    
+    const now = performance.now();
+    if (deltaDist > 3 && now - lastMoveTime > 45) {
+      triggerDragMotionSound(deltaDist);
+      lastMoveTime = now;
+    }
+
+    drawPuzzle();
+  };
+
+  const endDrag = () => {
+    if (!activePiece || !isPlaying || isPeeking) return;
+
+    const distX = Math.abs(activePiece.x - activePiece.correctX);
+    const distY = Math.abs(activePiece.y - activePiece.correctY);
+
+    if (distX < SNAP_THRESHOLD && distY < SNAP_THRESHOLD) {
+      activePiece.x = activePiece.correctX;
+      activePiece.y = activePiece.correctY;
+      activePiece.isLocked = true;
+      playSnapChime();
+      updateLockedCount();
+    } else {
+      playThud(false);
+    }
+
+    activePiece = null;
+    drawPuzzle();
+  };
+
+  canvas.addEventListener('pointerdown', startDrag);
+  window.addEventListener('pointermove', moveDrag);
+  window.addEventListener('pointerup', endDrag);
+
+  function drawPuzzle() {
+    if (isPeeking) return;
+    c.clearRect(0, 0, canvas.width, canvas.height);
+
+    const pieceWidth = canvas.width / gridDim;
+    const pieceHeight = canvas.height / gridDim;
+    c.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    c.lineWidth = 1.5;
+
+    for (let r = 0; r < gridDim; r++) {
+      for (let col = 0; col < gridDim; col++) {
+        c.strokeRect(col * pieceWidth, r * pieceHeight, pieceWidth, pieceHeight);
+      }
+    }
+
+    pieces.filter(p => p.isLocked).forEach(p => renderPiece(p));
+    pieces.filter(p => !p.isLocked).forEach(p => renderPiece(p));
+  }
+
+  function renderPiece(p) {
+    const sw = currentImage.naturalWidth / gridDim;
+    const sh = currentImage.naturalHeight / gridDim;
+    const sx = p.col * sw;
+    const sy = p.row * sh;
+
+    c.save();
+    if (p === activePiece) {
+      c.shadowColor = 'rgba(0,0,0,0.45)';
+      c.shadowBlur = 18;
+    }
+
+    c.drawImage(currentImage, sx, sy, sw, sh, p.x, p.y, p.w, p.h);
+
+    c.strokeStyle = p.isLocked ? 'rgba(126, 154, 123, 0.8)' : 'rgba(255, 255, 255, 0.4)';
+    c.lineWidth = p.isLocked ? 2 : 1.5;
+    c.strokeRect(p.x, p.y, p.w, p.h);
+    c.restore();
+  }
+
+  /* --- Dark Mode Switch --- */
+  const themeBtn = document.getElementById('themeBtn');
+  const root = document.documentElement;
+  const savedTheme = localStorage.getItem('cozy-theme') || 'dark';
+  setTheme(savedTheme);
+
+  themeBtn.addEventListener('click', () => {
+    const currentTheme = root.getAttribute('data-theme');
+    setTheme(currentTheme === 'light' ? 'dark' : 'light');
+  });
+
+  function setTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    localStorage.setItem('cozy-theme', theme);
+    themeBtn.textContent = theme === 'light' ? '🌙' : '☀️';
+  }
+</script>
+</body>
+</html>
